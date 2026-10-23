@@ -1,0 +1,29 @@
+# Tells the Morrow repo that this repo's main moved, so Morrow points its
+# submodule at the new commit (see Morrow's .github/workflows/bump-submodules.yml).
+name: Bump Morrow
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: bump-morrow
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask Morrow to bump its submodules
+        env:
+          GH_TOKEN: ${{ secrets.MORROW_BUMP_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret MORROW_BUMP_TOKEN is not set; Morrow will catch up on its hourly run."
+            exit 1
+          fi
+          gh api repos/GuptaSoujanya/Morrow/dispatches \
+            -f event_type=submodule-updated \
+            -f "client_payload[repository]=${{ github.repository }}" \
+            -f "client_payload[sha]=${{ github.sha }}"
