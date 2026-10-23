@@ -64,17 +64,38 @@ class S3Storage:
             raise ValueError("S3_BUCKET is required")
         self.bucket = settings.s3_bucket
         self.limit = settings.max_artifact_bytes
-        self.client = boto3.client("s3", region_name=settings.s3_region, endpoint_url=settings.s3_endpoint_url, config=Config(connect_timeout=5, read_timeout=30, retries={"max_attempts": 2}))
+        self.client = boto3.client(
+            "s3",
+            region_name=settings.s3_region,
+            endpoint_url=settings.s3_endpoint_url,
+            config=Config(connect_timeout=5, read_timeout=30, retries={"max_attempts": 2}),
+        )
 
     def check(self):
         self.client.head_bucket(Bucket=self.bucket)
-        block = self.client.get_public_access_block(Bucket=self.bucket)["PublicAccessBlockConfiguration"]
-        if not all(block.get(name) for name in ("BlockPublicAcls", "IgnorePublicAcls", "BlockPublicPolicy", "RestrictPublicBuckets")):
+        block = self.client.get_public_access_block(Bucket=self.bucket)[
+            "PublicAccessBlockConfiguration"
+        ]
+        if not all(
+            block.get(name)
+            for name in (
+                "BlockPublicAcls",
+                "IgnorePublicAcls",
+                "BlockPublicPolicy",
+                "RestrictPublicBuckets",
+            )
+        ):
             raise StorageError("The artifact bucket must block all public access")
 
     def put(self, key: str, body: bytes):
         validate_key(key)
-        self.client.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType="application/octet-stream", ServerSideEncryption="AES256")
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=body,
+            ContentType="application/octet-stream",
+            ServerSideEncryption="AES256",
+        )
 
     def get(self, key: str) -> bytes:
         validate_key(key)

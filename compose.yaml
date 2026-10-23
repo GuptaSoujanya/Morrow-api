@@ -1,0 +1,97 @@
+name: morrow-api
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: morrow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run morrow init-local first}
+    ports: ["127.0.0.1:15433:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d morrow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: .
+    command: ["morrow", "migrate"]
+    environment:
+      DATABASE_OWNER_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/morrow
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: "no"
+  admin:
+    profiles: ["maintenance"]
+    build: .
+    entrypoint: ["morrow"]
+    command: ["--help"]
+    environment:
+      DATABASE_URL: postgresql://morrow_app:${APP_DATABASE_PASSWORD}@db:5432/morrow
+      DATABASE_OWNER_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/morrow
+      ARTIFACT_BACKEND: ${ARTIFACT_BACKEND:-local}
+      ARTIFACT_ROOT: /var/lib/morrow/artifacts
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://127.0.0.1:8100}
+      MAIL_BACKEND: ${MAIL_BACKEND:-file}
+      MAIL_ROOT: /var/lib/morrow/mail
+      MAIL_FROM: ${MAIL_FROM:-Morrow <hello@localhost>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+    volumes:
+      - private-data:/var/lib/morrow
+      - ../:/source:ro
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://morrow_app:${APP_DATABASE_PASSWORD}@db:5432/morrow
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://127.0.0.1:8100}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
+      AUTH_IP_ATTEMPT_LIMIT: ${AUTH_IP_ATTEMPT_LIMIT:-1000}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-["localhost","127.0.0.1"]}
+      ARTIFACT_BACKEND: ${ARTIFACT_BACKEND:-local}
+      ARTIFACT_ROOT: /var/lib/morrow/artifacts
+      MAIL_BACKEND: ${MAIL_BACKEND:-file}
+      MAIL_ROOT: /var/lib/morrow/mail
+      MAIL_FROM: ${MAIL_FROM:-Morrow <hello@localhost>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+    ports: ["127.0.0.1:8200:8200"]
+    volumes: ["private-data:/var/lib/morrow"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/health/ready', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+volumes:
+  postgres-data:
+  private-data:

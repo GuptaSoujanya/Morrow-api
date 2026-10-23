@@ -4,9 +4,10 @@ from starlette.responses import JSONResponse
 class RequestBoundary:
     """Bound bodies before parsing, including chunked uploads; never cache private responses."""
 
-    def __init__(self, app, artifact_limit: int):
+    def __init__(self, app, artifact_limit: int, public_origin: str):
         self.app = app
         self.artifact_limit = artifact_limit
+        self.public_origin = public_origin.rstrip("/")
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -15,21 +16,36 @@ class RequestBoundary:
         async def private_send(message):
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
-                headers.extend([(b"cache-control", b"no-store"), (b"x-content-type-options", b"nosniff"), (b"referrer-policy", b"no-referrer")])
+                headers.extend(
+                    [
+                        (b"cache-control", b"no-store"),
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"referrer-policy", b"no-referrer"),
+                    ]
+                )
                 message = {**message, "headers": headers}
             await send(message)
 
-        if scope["method"] in ("POST", "PUT", "PATCH"):
+        if scope["method"] in ("POST", "PUT", "PATCH", "DELETE"):
             limit = self.artifact_limit if scope["path"] == "/api/v1/artifacts" else 1024 * 1024
             headers = dict(scope.get("headers", []))
+            origin = headers.get(b"origin")
+            if origin and origin.decode() != self.public_origin:
+                return await JSONResponse({"detail": "Untrusted request origin"}, 403)(
+                    scope, receive, private_send
+                )
             try:
                 size = int(headers.get(b"content-length", b"0"))
                 if size < 0:
                     raise ValueError
             except ValueError:
-                return await JSONResponse({"detail": "Invalid Content-Length"}, 400)(scope, receive, private_send)
+                return await JSONResponse({"detail": "Invalid Content-Length"}, 400)(
+                    scope, receive, private_send
+                )
             if size > limit:
-                return await JSONResponse({"detail": "Request body exceeds size limit"}, 413)(scope, receive, private_send)
+                return await JSONResponse({"detail": "Request body exceeds size limit"}, 413)(
+                    scope, receive, private_send
+                )
             chunks = []
             size = 0
             while True:
@@ -39,7 +55,9 @@ class RequestBoundary:
                 chunk = message.get("body", b"")
                 size += len(chunk)
                 if size > limit:
-                    return await JSONResponse({"detail": "Request body exceeds size limit"}, 413)(scope, receive, private_send)
+                    return await JSONResponse({"detail": "Request body exceeds size limit"}, 413)(
+                        scope, receive, private_send
+                    )
                 chunks.append(chunk)
                 if not message.get("more_body", False):
                     break

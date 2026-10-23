@@ -25,9 +25,13 @@ def assert_runtime_role(pool: ConnectionPool) -> None:
             "SELECT count(*) AS n FROM pg_tables WHERE schemaname='public' AND tableowner=current_user"
         ).fetchone()["n"]
         if any(role.values()) or owned:
-            raise RuntimeError("API must use a non-owner database role without privileged role flags")
-        version = conn.execute("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1").fetchone()
-        if not version or version["version"] != "002_identity_plans":
+            raise RuntimeError(
+                "API must use a non-owner database role without privileged role flags"
+            )
+        version = conn.execute(
+            "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+        ).fetchone()
+        if not version or version["version"] != "004_mail_delivery":
             raise RuntimeError("Run database migrations before starting the API")
 
 
