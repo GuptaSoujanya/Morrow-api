@@ -21,6 +21,7 @@ from .entitlements import record_module, require_module
 from .firebase_identity import FirebaseIdentity
 from .identity import identity_router
 from .middleware import RequestBoundary
+from .onboarding import onboarding_router
 from .schemas import ApplicationCreate, Login, ProfileUpdate, RecordUpdate
 from .security import administrator, attach_session, current_user, login
 from .storage import StorageError, storage_for
@@ -59,7 +60,7 @@ def create_app(settings: Settings | None = None):
     app.add_middleware(
         RequestBoundary,
         artifact_limit=settings.max_artifact_bytes,
-        public_origin=settings.public_origin,
+        trusted_origins=settings.trusted_origins,
     )
     app.add_middleware(
         SessionMiddleware,
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None):
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     app.include_router(identity_router(settings, pool, firebase))
     app.include_router(billing_router(settings, pool))
+    app.include_router(onboarding_router(pool, storage))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request, exc):

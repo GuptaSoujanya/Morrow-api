@@ -134,7 +134,7 @@ def firebase_router(settings, pool, provider):
         # This is a browser session exchange, not a general bearer-token endpoint.
         csrf = request.session.get("firebase_csrf", "")
         if (
-            request.headers.get("origin") != settings.public_origin
+            request.headers.get("origin") not in settings.trusted_origins
             or not csrf
             or not secrets.compare_digest(csrf, request.headers.get("x-csrf-token", ""))
         ):

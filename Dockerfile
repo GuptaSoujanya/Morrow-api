@@ -3,7 +3,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /bin/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY src/ src/
-RUN uv sync --frozen --no-dev && useradd --create-home --uid 1000 morrow \
+RUN --mount=type=cache,target=/root/.cache/uv UV_HTTP_TIMEOUT=120 uv sync --frozen --no-dev && useradd --create-home --uid 1000 morrow \
     && mkdir -p /var/lib/morrow && chown morrow:morrow /var/lib/morrow
 ENV PATH="/app/.venv/bin:$PATH"
 USER morrow

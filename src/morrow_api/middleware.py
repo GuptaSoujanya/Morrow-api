@@ -4,10 +4,10 @@ from starlette.responses import JSONResponse
 class RequestBoundary:
     """Bound bodies before parsing, including chunked uploads; never cache private responses."""
 
-    def __init__(self, app, artifact_limit: int, public_origin: str):
+    def __init__(self, app, artifact_limit: int, trusted_origins: set[str]):
         self.app = app
         self.artifact_limit = artifact_limit
-        self.public_origin = public_origin.rstrip("/")
+        self.trusted_origins = trusted_origins
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -30,7 +30,7 @@ class RequestBoundary:
             limit = self.artifact_limit if scope["path"] == "/api/v1/artifacts" else 1024 * 1024
             headers = dict(scope.get("headers", []))
             origin = headers.get(b"origin")
-            if origin and origin.decode() != self.public_origin:
+            if origin and origin.decode() not in self.trusted_origins:
                 return await JSONResponse({"detail": "Untrusted request origin"}, 403)(
                     scope, receive, private_send
                 )

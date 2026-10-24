@@ -12,6 +12,7 @@ For the first 100 users, use the [Firebase setup guide](FIREBASE_SETUP.md). It c
 - Revocable sessions in HttpOnly cookies, CSRF checks, Argon2 passwords, single-use email links, and persistent authentication throttling.
 - User and administrator roles. Modules are checked on the server against the current plan on every request.
 - Profiles with version conflicts, application history with idempotent writes, module records, and authenticated artifact uploads/downloads.
+- Tenant-scoped onboarding drafts, platform account labels, and a selected private PDF resume, with version conflicts and computed profile/resume readiness.
 - PostgreSQL row-level security with a non-owner runtime role. Each user has a separate tenant.
 - Administrator inspection of users’ profiles, application history, records, and artifacts; access and role/plan changes require a reason and write an audit entry. The runtime role cannot update or delete audit entries.
 - Stripe hosted subscription Checkout, the customer portal, and signed, replay-safe webhooks. Entitlements come from retrieved subscription state; the checkout return URL cannot grant access.
@@ -92,6 +93,16 @@ The existing `froned-dashbord/server.py` checks the account service at `MORROW_A
 Account navigation uses dashboard hash routes: `/#/login`, `/#/signup`, `/#/overview`, `/#/verify?token=…`, `/#/reset?token=…`, and `/#/plans`. Email links and OAuth/payment return URLs are built from `PUBLIC_ORIGIN`. There is no separate `/account` UI on the API.
 
 The original automation tools remain restricted to the configured workspace owner. The `localhost:8000` predecessor and bot scripts are not public services. Import is a snapshot, not a live synchronization bridge. New bot executions will continue writing the legacy ledger until their storage adapters are migrated. All users share the existing dashboard UI while their account records and private artifacts remain separate.
+
+### Onboarding API
+
+`GET /api/v1/onboarding` returns `version`, `platforms`, `account_hints`, `resume_artifact_id`, safe selected-resume metadata, the current versioned `profile`, `completed_at`, and computed `readiness`. An account without a draft starts at version `0`. Readiness is recalculated when profile fields change or the selected resume is deleted. A previous completion timestamp records when setup was saved; it does not certify current browser authentication or runner availability.
+
+`PUT /api/v1/onboarding` replaces the preferences with `expected_version`, `platforms`, `account_hints`, nullable `resume_artifact_id`, and optional `completed` (default `false`). Supported platform IDs are `naukri`, `linkedin`, `hirist`, `instahyre`, `cutshort`, `wellfound`, and `google`. A conflicting version returns `409` without replacing saved data. Account hints are plain display labels or email addresses, up to 254 characters; passwords, cookies, browser state, and client-supplied verification flags are not fields in this API.
+
+Save facts through the existing versioned `/api/v1/profile` API. The minimum fields for completing onboarding are nonempty strings `full_name`, `email`, `phone`, `current_location`, and a nonempty list of strings in `titles`. Upload the PDF through `POST /api/v1/artifacts?filename=resume.pdf&category=resumes`, then select its returned ID. Selection checks the tenant, category, PDF filename/content type, checksum, and PDF signature. Artifact content stays in private artifact storage.
+
+Incomplete drafts are allowed. `completed: true` requires the minimum profile, an owned PDF resume, and at least one selected platform. Repeated completed saves retain their original completion timestamp; saving with `completed: false` returns the record to a draft. No cookie or browser session is uploaded by these endpoints. Browser authentication and session retention are handled separately on the user's local runner. Apply migration `005_onboarding` before starting the updated API; the runtime database role has tenant-scoped access to the new state table.
 
 ## Deployment shape
 

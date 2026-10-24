@@ -46,6 +46,7 @@ def migrate(owner_url: str, app_password: str) -> None:
             "GRANT SELECT, INSERT, UPDATE, DELETE ON profiles, applications, workspace_records, artifacts TO morrow_app"
         )
         conn.execute("GRANT SELECT, INSERT ON profile_versions TO morrow_app")
+        conn.execute("GRANT SELECT, INSERT, UPDATE ON onboarding_state TO morrow_app")
         conn.execute("GRANT SELECT, INSERT ON audit_events TO morrow_app")
         conn.execute("GRANT USAGE ON SEQUENCE audit_events_id_seq TO morrow_app")
         conn.execute("GRANT INSERT, UPDATE ON users TO morrow_app")

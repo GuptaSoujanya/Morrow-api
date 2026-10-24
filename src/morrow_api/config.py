@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     s3_endpoint_url: str | None = None
     public_origin: str = "http://127.0.0.1:8100"
+    # More browser origins that may call the API, e.g. localhost beside 127.0.0.1.
+    extra_origins: list[str] = []
     session_secret: SecretStr = SecretStr("")
     cookie_secure: bool = False
     auth_provider: Literal["local", "firebase"] = "local"
@@ -39,6 +41,15 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = SecretStr("")
     stripe_secret_key: SecretStr = SecretStr("")
     stripe_webhook_secret: SecretStr = SecretStr("")
+
+    @property
+    def trusted_origins(self) -> set[str]:
+        return {self.public_origin, *self.extra_origins}
+
+    @field_validator("extra_origins")
+    @classmethod
+    def extra_dashboard_origins(cls, value: list[str]) -> list[str]:
+        return [cls.dashboard_origin(origin) for origin in value]
 
     @field_validator("public_origin")
     @classmethod
