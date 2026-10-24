@@ -144,6 +144,7 @@ def test_checkout_does_not_grant_access_and_uses_owned_customer(setup, monkeypat
     configure_billing(setup)
     alice = auth(setup)
     calls = []
+    monkeypatch.setattr(stripe.Subscription, "list", lambda **kwargs: {"data": []})
     monkeypatch.setattr(stripe.checkout.Session, "list", lambda **kwargs: {"data": []})
 
     def create(**kwargs):

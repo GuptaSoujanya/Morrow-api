@@ -58,11 +58,11 @@ def database():
 def setup(database, tmp_path):
     with psycopg.connect(database["owner"], row_factory=dict_row) as conn:
         conn.execute(
-            "TRUNCATE users,auth_sessions,auth_limits,profiles,profile_versions,applications,workspace_records,artifacts,audit_events,auth_tokens,oauth_states,mail_outbox,stripe_events RESTART IDENTITY CASCADE"
+            "TRUNCATE users,auth_sessions,auth_limits,profiles,profile_versions,applications,workspace_records,artifacts,audit_events,auth_tokens,oauth_states,mail_outbox,stripe_events,razorpay_events RESTART IDENTITY CASCADE"
         )
         for plan in database["plans"]:
             conn.execute(
-                "UPDATE plans SET name=%s,modules=%s,stripe_price_id=NULL WHERE slug=%s",
+                "UPDATE plans SET name=%s,modules=%s,stripe_price_id=NULL,razorpay_plan_id=NULL WHERE slug=%s",
                 (plan["name"], Jsonb(plan["modules"]), plan["slug"]),
             )
         users = {}
@@ -87,6 +87,7 @@ def setup(database, tmp_path):
         max_artifact_bytes=1024,
         stripe_secret_key="sk_test_fixture",
         stripe_webhook_secret="whsec_fixture",
+        billing_provider="stripe",
     )
     app = create_app(settings)
     with TestClient(app) as client:

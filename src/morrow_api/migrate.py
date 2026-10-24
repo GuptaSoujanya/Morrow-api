@@ -54,3 +54,5 @@ def migrate(owner_url: str, app_password: str) -> None:
         conn.execute("GRANT SELECT, INSERT, DELETE ON auth_tokens, oauth_states TO morrow_app")
         conn.execute("GRANT SELECT, INSERT, UPDATE ON mail_outbox TO morrow_app")
         conn.execute("GRANT SELECT, INSERT ON stripe_events TO morrow_app")
+        conn.execute("GRANT SELECT, INSERT, UPDATE ON razorpay_subscriptions TO morrow_app")
+        conn.execute("GRANT SELECT, INSERT ON razorpay_events TO morrow_app")

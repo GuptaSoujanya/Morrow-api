@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = SecretStr("")
     stripe_secret_key: SecretStr = SecretStr("")
     stripe_webhook_secret: SecretStr = SecretStr("")
+    billing_provider: Literal["stripe", "razorpay"] = "stripe"
+    razorpay_key_id: str = ""
+    razorpay_key_secret: SecretStr = SecretStr("")
+    razorpay_webhook_secret: SecretStr = SecretStr("")
+    razorpay_total_count: int = Field(default=120, ge=1, le=120)
 
     @property
     def trusted_origins(self) -> set[str]:

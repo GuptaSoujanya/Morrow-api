@@ -135,6 +135,7 @@ def main():
     )
     firebase.add_argument("--reason", required=True)
     commands.add_parser("send-mail")
+    commands.add_parser("reconcile-billing", help="Recover missed Razorpay billing notifications")
     importer = commands.add_parser("import-workspace")
     importer.add_argument("--source", type=Path, required=True)
     importer.add_argument("--owner-email", required=True)
@@ -191,6 +192,13 @@ def main():
             with pool_for(settings.database_url.get_secret_value()) as pool:
                 if args.command == "send-mail":
                     print(f"Delivered {flush_mail(pool, settings)} queued messages.")
+                elif args.command == "reconcile-billing":
+                    from .reconciliation import reconcile_billing
+
+                    result = reconcile_billing(settings, pool)
+                    print(json.dumps(result))
+                    if result["failed"]:
+                        parser.exit(1, "Some subscriptions need another reconciliation attempt.\n")
                 elif args.command == "purge-artifacts":
                     from .storage import storage_for
 

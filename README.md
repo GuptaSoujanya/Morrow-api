@@ -1,6 +1,8 @@
 # Morrow API
 
-A backend-only FastAPI service for the existing `froned-dashbord` application: accounts, PostgreSQL, private artifacts, and Stripe subscriptions. All screens live in `froned-dashbord` and use its existing navigation and visual system. This repository serves JSON APIs and private file content; it does not build or serve another frontend.
+A backend-only FastAPI service for the existing `froned-dashbord` application: accounts, PostgreSQL, private artifacts, and subscriptions. All screens live in `froned-dashbord` and use its existing navigation and visual system. This repository serves JSON APIs and private file content; it does not build or serve another frontend.
+
+For India payments by INR, UPI AutoPay, and cards, follow [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md). Razorpay uses the existing Plans & billing screen; Stripe remains supported for existing installations.
 
 For the first 100 users, use the [Firebase setup guide](FIREBASE_SETUP.md). It covers free Google/email authentication, verification and recovery emails, optional Resend delivery, and preserving the imported administrator workspace. No Firebase project is connected yet; the current local configuration remains usable with local accounts.
 
@@ -16,9 +18,10 @@ For the first 100 users, use the [Firebase setup guide](FIREBASE_SETUP.md). It c
 - PostgreSQL row-level security with a non-owner runtime role. Each user has a separate tenant.
 - Administrator inspection of users’ profiles, application history, records, and artifacts; access and role/plan changes require a reason and write an audit entry. The runtime role cannot update or delete audit entries.
 - Stripe hosted subscription Checkout, the customer portal, and signed, replay-safe webhooks. Entitlements come from retrieved subscription state; the checkout return URL cannot grant access.
+- Razorpay subscription Checkout, owned subscription status, payment reconciliation, and end-of-period cancellation. Signed webhooks and server-fetched paid invoices/captured payments determine access; authorization alone does not unlock modules.
 - A same-origin integration with the existing dashboard for signup, login, profiles, files, pricing, account settings, and administration.
 
-The resume, research, learning, automation, outreach, and insights modules have plan gates and storage APIs, but their legacy workflows have **not yet been migrated to individual user runtimes**. Legacy shared workflows remain restricted to the configured workspace owner. Claude/Kiro selection saves a preference; it does not connect an AI session. Keep Stripe in test mode until the advertised paid workflows are ready.
+The resume, research, learning, automation, outreach, and insights modules have plan gates and storage APIs, but their legacy workflows have **not yet been migrated to individual user runtimes**. Legacy shared workflows remain restricted to the configured workspace owner. Claude/Kiro selection saves a preference; it does not connect an AI session. Keep payments in test mode until the advertised paid workflows are ready.
 
 ## Simple starting plans
 
@@ -28,9 +31,9 @@ The resume, research, learning, automation, outreach, and insights modules have 
 | Plus | ₹499 | Free + resume studio, research, learning |
 | Pro | ₹999 | Plus + automations, outreach, insights |
 
-Every user supplies their own Claude or Kiro subscription. No AI subscription or credits are bundled. Administrators have all module permissions. They can edit plan names, descriptions, included modules, and matching Stripe price IDs. The monetary defaults are seeded in the database; changing a price requires a deliberate database migration and a matching new Stripe price.
+Every user supplies their own Claude or Kiro subscription. No AI subscription or credits are bundled. Administrators have all module permissions. They can edit plan names, descriptions, included modules, and matching provider plan/price IDs. The monetary defaults are seeded in the database; changing a price requires a deliberate database migration and a matching new provider plan/price.
 
-Administrator-assigned plans override subscription entitlements. Editing access does not cancel a Stripe subscription; cancellation happens through the billing portal or Stripe. Expired paid access falls back to Free. Existing private files remain available after a downgrade.
+Administrator-assigned plans override subscription entitlements. Editing access does not cancel billing. Razorpay renewals can be cancelled in Plans & billing; Stripe customers use its billing portal. Expired paid access falls back to Free. Existing private files remain available after a downgrade.
 
 ## Run locally
 
@@ -56,7 +59,7 @@ For this local implementation, `admin@example.com` is the selected test owner. I
 
 The API container receives only the restricted runtime database credential. PostgreSQL and the API bind to loopback. Artifacts and development email live in the `morrow-api_private-data` Docker volume. Git contains code and configuration templates, not profiles, application history, passwords, or private files.
 
-## Connect email, Google, and Stripe
+## Connect email, Google, and payments
 
 Edit `.env`, then recreate the API with `docker compose up -d api`.
 
@@ -66,11 +69,13 @@ Edit `.env`, then recreate the API with `docker compose up -d api`.
 
 **Google:** create a Web application OAuth client and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Register the redirect URI exactly as `PUBLIC_ORIGIN/api/v1/auth/google/callback`, for example `http://127.0.0.1:8100/api/v1/auth/google/callback` locally. This public callback is forwarded by the dashboard to the API. Configure the Google consent screen/test users. The flow uses state, nonce, PKCE, and verified Google email identities. An existing password account is not automatically linked by matching email; those users continue with email/password. Provider failures return to the dashboard sign-in screen without exposing tokens. See [Google’s OpenID Connect documentation](https://developers.google.com/identity/openid-connect/openid-connect).
 
-**Stripe:** begin with test credentials. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. Create monthly recurring INR prices of 49900 and 99900 minor units for Plus and Pro. In **People & access**, enter an administration reason and save each `price_…` ID in its plan. The server checks currency, amount, and monthly recurrence. Configure the Stripe customer portal for the intended cancellation/plan-change behavior.
+**Razorpay (India):** set `BILLING_PROVIDER=razorpay` and follow [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md) for test keys, monthly INR plans, webhook events, and verification. API keys, webhook signing secret, and matching plan IDs are all required before checkout becomes available.
+
+**Stripe:** select `BILLING_PROVIDER=stripe` and begin with test credentials. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. Create monthly recurring INR prices of 49900 and 99900 minor units for Plus and Pro. In **People & access**, enter an administration reason and save each `price_…` ID in its plan. The server checks currency, amount, and monthly recurrence. Configure the Stripe customer portal for the intended cancellation/plan-change behavior.
 
 Register `PUBLIC_ORIGIN/api/v1/billing/webhook` for `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`. Locally, use `stripe listen --forward-to localhost:8200/api/v1/billing/webhook` and save the listener’s signing secret. Use the endpoint’s own signing secret in production. Webhooks reconcile current Stripe state so delayed events cannot restore a canceled plan. Checkout and customer-portal returns go to the dashboard's `/#/plans` screen. See [Stripe subscription Checkout](https://docs.stripe.com/billing/subscriptions/build-subscriptions) and [webhook setup](https://docs.stripe.com/webhooks).
 
-Firebase, Google, email-provider, and real Stripe credentials are not included or fabricated. Provider behavior is exercised with test adapters and signed synthetic webhook events; live delivery/payment/provider sign-in require your accounts.
+Firebase, Google, email-provider, and real payment credentials are not included or fabricated. Provider behavior is exercised with test adapters and signed synthetic webhook events; live delivery/payment/provider sign-in require your accounts.
 
 ## Import the existing workspace
 

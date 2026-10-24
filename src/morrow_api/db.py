@@ -31,7 +31,7 @@ def assert_runtime_role(pool: ConnectionPool) -> None:
         version = conn.execute(
             "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
         ).fetchone()
-        if not version or version["version"] != "005_onboarding":
+        if not version or version["version"] != "006_razorpay_billing":
             raise RuntimeError("Run database migrations before starting the API")
 
 
