@@ -1,6 +1,6 @@
 """Run real Firebase sign-in against a separate, empty Morrow workspace database.
 
-Start the existing dashboard with MORROW_API_URL=http://127.0.0.1:8203 and
+Start the existing dashboard with MORROW_MODE=accounts, MORROW_API_URL=http://127.0.0.1:8203 and
 MORROW_WORKSPACE_OWNER_EMAIL='' on port 8103, then use http://localhost:8103.
 The main API, its configuration, and imported workspace are left in place.
 """

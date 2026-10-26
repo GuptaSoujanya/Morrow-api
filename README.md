@@ -47,7 +47,14 @@ docker compose up -d --build
 
 `init-local` creates a private `.env` with unique database and session secrets. If this workspace already has `.env`, preserve it and skip that command. Migrations run as a separate owner job before the API starts. The API listens at <http://127.0.0.1:8200>; readiness is at `/health/ready` and API documentation is at `/docs`.
 
-Start the existing dashboard with `npm start` in `froned-dashbord`, with `MORROW_API_URL=http://127.0.0.1:8200` and `MORROW_WORKSPACE_OWNER_EMAIL=admin@example.com` in its ignored `.env.local`, then open <http://127.0.0.1:8100/#/login>. See the [dashboard setup](../froned-dashbord/README.md). The dashboard proxies `/api/v1/*` to the API, so browser requests, cookies, CSRF checks, Google callbacks, and account screens share the dashboard origin. `PUBLIC_ORIGIN` is the dashboard's origin (default `http://127.0.0.1:8100`), not the API's listening address.
+The dashboard defaults to a free local beta without accounts or billing. To use this API,
+start `npm start -- --mode accounts` in `froned-dashbord`, with
+`MORROW_API_URL=http://127.0.0.1:8200` and `MORROW_WORKSPACE_OWNER_EMAIL=admin@example.com`
+in its ignored `.env.local`, then open <http://127.0.0.1:8100/#/login>. Set
+`MORROW_MODE=accounts` to persist that choice. See the [dashboard setup](../froned-dashbord/README.md).
+In accounts mode, the dashboard proxies `/api/v1/*` to the API, so browser requests,
+cookies, CSRF checks, Google callbacks, and account screens share the dashboard origin.
+`PUBLIC_ORIGIN` is the dashboard's origin (default `http://127.0.0.1:8100`), not the API's listening address.
 
 Create the first administrator with an interactive password prompt:
 
