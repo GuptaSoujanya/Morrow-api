@@ -1,9 +1,8 @@
 from datetime import datetime, timezone
-from typing import Annotated
 from uuid import UUID
 
 import stripe
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg.types.json import Jsonb
 from pydantic import Field
 from starlette.concurrency import run_in_threadpool
@@ -12,7 +11,7 @@ from . import razorpay_billing
 from .entitlements import MODULES
 from .repository import audit
 from .schemas import StrictModel
-from .security import administrator, current_user
+from .security import Reason, administrator, current_user
 
 
 class Checkout(StrictModel):
@@ -317,7 +316,7 @@ def billing_router(settings, pool):
     def change_access(
         user_id: UUID,
         data: UserAccess,
-        reason: Annotated[str, Header(alias="X-Admin-Reason", min_length=10, max_length=300)],
+        reason: Reason,
         user=Depends(administrator),
     ):
         if data.expires_at and data.expires_at.tzinfo is None:
@@ -358,7 +357,7 @@ def billing_router(settings, pool):
 
     @router.get("/admin/plans")
     def admin_plans(
-        reason: Annotated[str, Header(alias="X-Admin-Reason", min_length=10, max_length=300)],
+        reason: Reason,
         user=Depends(administrator),
     ):
         with pool.connection() as conn, conn.transaction():
@@ -370,7 +369,7 @@ def billing_router(settings, pool):
     def edit_plan(
         slug: str,
         data: PlanUpdate,
-        reason: Annotated[str, Header(alias="X-Admin-Reason", min_length=10, max_length=300)],
+        reason: Reason,
         user=Depends(administrator),
     ):
         if not set(data.modules) <= MODULES.keys() or not {

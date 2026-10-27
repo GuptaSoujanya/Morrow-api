@@ -212,13 +212,12 @@ def test_daily_quota_pauses_current_queue_until_next_utc_day(setup, monkeypatch)
     assert mail.flush_mail(setup["app"].state.pool, setup["settings"]) == 0
     queued = rows(setup)
     assert len(calls) == 1 and sum(row["attempts"] for row in queued) == 1
+    # The driver returns timestamptz in the session's zone; compare in UTC.
+    retries = [row["next_attempt_at"].astimezone(timezone.utc) for row in queued]
     assert all(
-        row["next_attempt_at"].date() == (datetime.now(timezone.utc) + timedelta(days=1)).date()
-        for row in queued
+        retry.date() == (datetime.now(timezone.utc) + timedelta(days=1)).date() for retry in retries
     )
-    assert all(
-        row["next_attempt_at"].hour == 0 and row["next_attempt_at"].second == 5 for row in queued
-    )
+    assert all(retry.hour == 0 and retry.second == 5 for retry in retries)
 
 
 def test_expired_auth_link_is_discarded_without_delivery(setup, monkeypatch):

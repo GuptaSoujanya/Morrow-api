@@ -1,11 +1,17 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+# Every admin route takes the same audited reason header: one definition, one set of rules.
+Reason = Annotated[
+    str, Header(alias="X-Admin-Reason", min_length=10, max_length=300, pattern=r"^[^\x00-\x1f]+$")
+]
 
 hasher = PasswordHasher()
 DUMMY_HASH = hasher.hash(secrets.token_urlsafe(32))

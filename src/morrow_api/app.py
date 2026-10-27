@@ -24,15 +24,12 @@ from .middleware import RequestBoundary
 from .onboarding import onboarding_router
 from .razorpay_billing import razorpay_router
 from .schemas import ApplicationCreate, Login, ProfileUpdate, RecordUpdate
-from .security import administrator, attach_session, current_user, login
+from .security import Reason, administrator, attach_session, current_user, login
 from .storage import StorageError, storage_for
 
 PageLimit = Annotated[int, Query(ge=1, le=100)]
 PageOffset = Annotated[int, Query(ge=0, le=100000)]
 Collection = Annotated[str, Query(min_length=1, max_length=64, pattern=r"^[a-z0-9_-]+$")]
-Reason = Annotated[
-    str, Header(alias="X-Admin-Reason", min_length=10, max_length=300, pattern=r"^[^\x00-\x1f]+$")
-]
 
 
 def create_app(settings: Settings | None = None):
@@ -196,7 +193,11 @@ def create_app(settings: Settings | None = None):
 
     @app.put("/api/v1/records/{collection}/{key}")
     def put_record(collection: str, key: str, data: RecordUpdate, user=Depends(current_user)):
-        if not re.fullmatch(r"[a-z0-9_-]{1,64}", collection) or not 1 <= len(key) <= 256:
+        if (
+            not re.fullmatch(r"[a-z0-9_-]{1,64}", collection)
+            or not 1 <= len(key) <= 256
+            or re.search(r"[\x00-\x1f\x7f]", key)
+        ):
             raise HTTPException(422, "Invalid collection or record key")
         require_module(user, record_module(collection))
         with tenant_transaction(pool, user["tenant_id"]) as conn:
