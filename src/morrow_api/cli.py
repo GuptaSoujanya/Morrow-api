@@ -142,6 +142,14 @@ def main():
     importer.add_argument(
         "--apply", action="store_true", help="Write the import; otherwise show counts only"
     )
+    exporter = commands.add_parser(
+        "export-workspace", help="Write an owner's account data into a Morrow user repo layout"
+    )
+    exporter.add_argument("--target", type=Path, required=True)
+    exporter.add_argument("--owner-email", required=True)
+    exporter.add_argument(
+        "--apply", action="store_true", help="Write the files; otherwise show what would change"
+    )
     commands.add_parser("purge-artifacts")
     args = parser.parse_args()
     load_dotenv()
@@ -183,6 +191,17 @@ def main():
                 json.dumps(
                     import_workspace(
                         args.source, args.owner_email, args.apply, Settings(), owner_url()
+                    ),
+                    indent=2,
+                )
+            )
+        elif args.command == "export-workspace":
+            from .exporter import export_workspace
+
+            print(
+                json.dumps(
+                    export_workspace(
+                        args.owner_email, args.target, args.apply, Settings(), owner_url()
                     ),
                     indent=2,
                 )

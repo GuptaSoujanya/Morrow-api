@@ -268,3 +268,47 @@ def test_import_is_repeatable_owner_scoped_and_skips_credentials(setup, tmp_path
     files = client.get("/api/v1/artifacts", headers=alice).json()["items"]
     assert {item["filename"] for item in files} == {"profile.yaml", "report.md", "learning.json"}
     assert client.get("/api/v1/profile", headers=alice).json()["version"] == 1
+
+
+def test_export_restores_owner_workspace_into_user_repo_layout(setup, tmp_path):
+    from morrow_api.exporter import export_workspace
+
+    source = tmp_path / "legacy"
+    for relative in ("inputs", "reports/day", "browser", "memory", "resume"):
+        (source / relative).mkdir(parents=True)
+    (source / "inputs/profile.yaml").write_text("full_name: Legacy Person\nskills: [Python]\n")
+    (source / "browser/cookies.txt").write_text("private-cookie")
+    (source / "reports/day/report.md").write_text("# Application report")
+    (source / "memory/learning.json").write_text('{"done": [1]}')
+    (source / "resume/base.tex").write_text("\\documentclass{article}")
+    import_workspace(source, "alice@example.com", True, setup["settings"], setup["db"]["owner"])
+    target = tmp_path / "restored"
+    (target / "inputs").mkdir(parents=True)
+    (target / "inputs/profile.yaml").write_text("custom_fact: keep me\nfull_name: Old Name\n")
+    preview = export_workspace(
+        "alice@example.com", target, False, setup["settings"], setup["db"]["owner"]
+    )
+    assert preview["mode"] == "preview" and preview["artifacts"] == 3
+    assert sorted(preview["files"]) == [
+        "inputs/profile.yaml",
+        "memory/learning.json",
+        "reports/day/report.md",
+        "resume/base.tex",
+    ]
+    assert not (target / "reports").exists()
+    applied = export_workspace(
+        "alice@example.com", target, True, setup["settings"], setup["db"]["owner"]
+    )
+    assert applied["profile"] and applied["artifacts"] == 3 and applied["memory_records"] == 1
+    restored = (target / "inputs/profile.yaml").read_text()
+    assert "full_name: Legacy Person" in restored and "custom_fact: keep me" in restored
+    assert (target / "reports/day/report.md").read_text() == "# Application report"
+    assert json.loads((target / "memory/learning.json").read_text()) == {"done": [1]}
+    assert (target / "resume/base.tex").read_text() == "\\documentclass{article}"
+    assert not (target / "browser").exists()
+    again = export_workspace(
+        "alice@example.com", target, True, setup["settings"], setup["db"]["owner"]
+    )
+    assert again["artifacts"] == 0 and again["unchanged"] == 3 and again["memory_records"] == 0 and again["files"] == []
+    with pytest.raises(ValueError, match="owner"):
+        export_workspace("nobody@example.com", target, True, setup["settings"], setup["db"]["owner"])
