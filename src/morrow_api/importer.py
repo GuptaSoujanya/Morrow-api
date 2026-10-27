@@ -1,4 +1,4 @@
-"""Import an allowlisted legacy workspace into one explicitly selected owner."""
+"""Import a Morrow user repo (the clone under user/) into one explicitly selected owner."""
 
 import hashlib
 import json
@@ -28,20 +28,20 @@ TABLE_KEYS = {
 def source_files(root):
     candidates = []
     for relative in (
-        "data/inputs/profile.yaml",
-        "data/inputs/answers.txt",
-        "data/inputs/company_sites.md",
-        ".memory/progress.json",
-        ".memory/learning.json",
-        ".memory/profiles.json",
+        "inputs/profile.yaml",
+        "inputs/answers.txt",
+        "inputs/company_sites.md",
+        "memory/progress.json",
+        "memory/learning.json",
+        "memory/profiles.json",
     ):
         path = root / relative
         if path.is_file():
             candidates.append(path)
     for folder, patterns in (
-        (".research", ("*.md",)),
-        ("data/resume", ("*.pdf", "*.tex")),
-        ("data/reports", ("report.md", "*.eml")),
+        ("research", ("*.md",)),
+        ("resume", ("*.pdf", "*.tex")),
+        ("reports", ("report.md", "*.eml")),
     ):
         for pattern in patterns:
             candidates.extend((root / folder).rglob(pattern))
@@ -63,7 +63,7 @@ def import_workspace(root: Path, email: str, apply: bool, settings, owner_url: s
     if not root.is_dir():
         raise ValueError("Source directory does not exist")
     tables = {}
-    db_path = root / "data/db/naukri_bot.db"
+    db_path = root / "db/naukri_bot.db"
     if db_path.is_file():
         # SQLite backup creates a consistent snapshot while leaving the source read-only.
         with (
@@ -99,7 +99,7 @@ def import_workspace(root: Path, email: str, apply: bool, settings, owner_url: s
         if not owner:
             raise ValueError("Create the destination owner before importing")
         set_tenant(conn, owner["tenant_id"])
-        profile_path = root / "data/inputs/profile.yaml"
+        profile_path = root / "inputs/profile.yaml"
         if profile_path.is_file():
             data = yaml.safe_load(profile_path.read_text())
             if not isinstance(data, dict):
@@ -157,9 +157,9 @@ def import_workspace(root: Path, email: str, apply: bool, settings, owner_url: s
                 key,
             )
             if relative in (
-                ".memory/progress.json",
-                ".memory/learning.json",
-                ".memory/profiles.json",
+                "memory/progress.json",
+                "memory/learning.json",
+                "memory/profiles.json",
             ):
                 repo.save_record(
                     conn, owner["tenant_id"], "legacy_memory", path.stem, json.loads(body)

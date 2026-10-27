@@ -240,15 +240,15 @@ def test_s3_requires_private_bucket_and_encrypts_objects(monkeypatch):
 
 def test_import_is_repeatable_owner_scoped_and_skips_credentials(setup, tmp_path):
     source = tmp_path / "legacy"
-    for relative in ("data/db", "data/inputs", "data/reports/day", "data/browser", ".memory"):
+    for relative in ("db", "inputs", "reports/day", "browser", "memory"):
         (source / relative).mkdir(parents=True)
-    (source / "data/inputs/profile.yaml").write_text("full_name: Legacy Person\nskills: [Python]\n")
+    (source / "inputs/profile.yaml").write_text("full_name: Legacy Person\nskills: [Python]\n")
     (source / ".env").write_text("PASSWORD=never-import")
-    (source / "data/reports/day/secrets.env").write_text("TOKEN=never-import")
-    (source / "data/browser/cookies.txt").write_text("private-cookie")
-    (source / "data/reports/day/report.md").write_text("# Application report")
-    (source / ".memory/learning.json").write_text('{"done": [1]}')
-    with sqlite3.connect(source / "data/db/naukri_bot.db") as conn:
+    (source / "reports/day/secrets.env").write_text("TOKEN=never-import")
+    (source / "browser/cookies.txt").write_text("private-cookie")
+    (source / "reports/day/report.md").write_text("# Application report")
+    (source / "memory/learning.json").write_text('{"done": [1]}')
+    with sqlite3.connect(source / "db/naukri_bot.db") as conn:
         conn.execute(
             "CREATE TABLE applications(id integer,job_id text,title text,company text,url text,status text,detail text,at text)"
         )
